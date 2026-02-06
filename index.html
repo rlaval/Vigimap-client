@@ -57,15 +57,19 @@ html, body { height:100%; margin:0; font-family:Arial,sans-serif; }
 #legend div { display:flex; align-items:center; gap:6px; margin-bottom:4px; }
 .legend-color { width:16px; height:16px; border-radius:4px; }
 
-/* ===== AUTHENTIFICATION CLIENT ===== */
-#loginBox {
-  position:absolute; top:50%; left:50%; transform:translate(-50%,-50%);
-  background:white; padding:20px; border-radius:12px;
-  box-shadow:0 4px 12px rgba(0,0,0,0.25); z-index:2000;
-  width:280px; text-align:center;
+/* ===== LOGIN ===== */
+#loginOverlay {
+  position:absolute;
+  top:0; left:0; width:100%; height:100%;
+  background:rgba(0,0,0,0.5); display:flex;
+  justify-content:center; align-items:center; z-index:2000;
 }
-#loginBox input { width:100%; padding:8px; margin:6px 0; border-radius:6px; border:1px solid #ccc; }
-#loginBox button { padding:10px 0; margin-top:10px; width:100%; border:none; border-radius:6px; background:#2c3e50; color:white; font-size:15px; cursor:pointer; }
+#loginBox {
+  background:white; padding:30px; border-radius:12px; box-shadow:0 4px 16px rgba(0,0,0,0.3);
+  width:300px; display:flex; flex-direction:column; gap:12px;
+}
+#loginBox input { padding:8px; border-radius:6px; border:1px solid #ccc; width:100%; }
+#loginBox button { padding:10px; border:none; border-radius:6px; background:#2c3e50; color:white; cursor:pointer; font-size:15px; }
 </style>
 </head>
 
@@ -85,17 +89,19 @@ html, body { height:100%; margin:0; font-family:Arial,sans-serif; }
   <div><span class="legend-color" style="background:purple;"></span> Phénomènes extrêmes prévus</div>
 </div>
 
-<div id="loginBox">
-  <h3>Connexion Client</h3>
-  <input type="email" id="clientEmail" placeholder="Email">
-  <input type="password" id="clientPassword" placeholder="Mot de passe">
-  <button id="loginBtn">Se connecter</button>
-  <div id="loginError" style="color:red;margin-top:8px;"></div>
+<!-- LOGIN -->
+<div id="loginOverlay">
+  <div id="loginBox">
+    <h3>Connexion Client</h3>
+    <input id="loginEmail" type="email" placeholder="Email">
+    <input id="loginPassword" type="password" placeholder="Mot de passe">
+    <button id="loginBtn">Se connecter</button>
+  </div>
 </div>
 
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 
 <script>
@@ -105,79 +111,69 @@ firebase.initializeApp({
   authDomain:"vigimap-966e9.firebaseapp.com",
   projectId:"vigimap-966e9"
 });
-const auth = firebase.auth();
 const db = firebase.firestore();
+const auth = firebase.auth();
 
+// 🔹 Carte
 const map = L.map("map").setView([44.35,2.57],10);
 L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png").addTo(map);
 
+// 🔹 Icônes et labels
 const baseIcon = { iconSize:[36,36], iconAnchor:[18,18], popupAnchor:[0,-22] };
 const icons = {
-  1:L.icon({...baseIcon,iconUrl:"https://primary.jwwb.nl/public/q/t/q/temp-uozhroxmecrdemnjgoky/logo_initiale_marron-_gourmand_-l-gant_minimaliste__10_-removebg-preview-high.png?enable-io=true&width=532"}),
-  2:L.icon({...baseIcon,iconUrl:"https://primary.jwwb.nl/public/q/t/q/temp-uozhroxmecrdemnjgoky/logo_initiale_marron-_gourmand_-l-gant_minimaliste__11_-removebg-preview-high.png?enable-io=true&width=532"}),
-  3:L.icon({...baseIcon,iconUrl:"https://primary.jwwb.nl/public/q/t/q/temp-uozhroxmecrdemnjgoky/logo_initiale_marron-_gourmand_-l-gant_minimaliste__12_-removebg-preview-high.png?enable-io=true&width=532"}),
-  4:L.icon({...baseIcon,iconUrl:"https://primary.jwwb.nl/public/q/t/q/temp-uozhroxmecrdemnjgoky/logo_initiale_marron-_gourmand_-l-gant_minimaliste__13_-removebg-preview-high.png?enable-io=true&width=532"}),
-  5:L.icon({...baseIcon,iconUrl:"https://primary.jwwb.nl/public/q/t/q/temp-uozhroxmecrdemnjgoky/logo_initiale_marron-_gourmand_-l-gant_minimaliste__14_-removebg-preview-high.png?enable-io=true&width=532"})
+  1:L.icon({...baseIcon, iconUrl:"https://primary.jwwb.nl/public/q/t/q/temp-uozhroxmecrdemnjgoky/logo_initiale_marron-_gourmand_-l-gant_minimaliste__10_-removebg-preview-high.png?enable-io=true&width=532"}),
+  2:L.icon({...baseIcon, iconUrl:"https://primary.jwwb.nl/public/q/t/q/temp-uozhroxmecrdemnjgoky/logo_initiale_marron-_gourmand_-l-gant_minimaliste__11_-removebg-preview-high.png?enable-io=true&width=532"}),
+  3:L.icon({...baseIcon, iconUrl:"https://primary.jwwb.nl/public/q/t/q/temp-uozhroxmecrdemnjgoky/logo_initiale_marron-_gourmand_-l-gant_minimaliste__12_-removebg-preview-high.png?enable-io=true&width=532"}),
+  4:L.icon({...baseIcon, iconUrl:"https://primary.jwwb.nl/public/q/t/q/temp-uozhroxmecrdemnjgoky/logo_initiale_marron-_gourmand_-l-gant_minimaliste__13_-removebg-preview-high.png?enable-io=true&width=532"}),
+  5:L.icon({...baseIcon, iconUrl:"https://primary.jwwb.nl/public/q/t/q/temp-uozhroxmecrdemnjgoky/logo_initiale_marron-_gourmand_-l-gant_minimaliste__14_-removebg-preview-high.png?enable-io=true&width=532"})
 };
-
 const vigilanceText = {1:"Aucuns phénomènes prévus",2:"Phénomènes faibles / modérés possibles",3:"Phénomènes forts possibles",4:"Phénomènes violents possibles",5:"Phénomènes extrêmes prévus"};
 const phenLabels = {rafales:"Fortes rafales de vent possibles",petiteGrele:"Grêle de petite taille possible",grelleMoyenne:"Grêle de taille moyenne possible",grelleGrosse:"Grêle de grosse taille possible",fortesPrecip:"Fortes précipitations possibles",activiteElec:"Orage avec forte activité électrique possible",ruissements:"Risque de ruissellements possibles"};
 const circleColors = {1:"#2ecc71",2:"#f1c40f",3:"#e67e22",4:"#e74c3c",5:"#9b59b6"};
 
 const markers={}, circles={}, blinkTimers={};
-let currentUserUid = null;
+let currentUserUid=null;
 
-// 🔹 Auth client
-const loginBox = document.getElementById("loginBox");
-const loginBtn = document.getElementById("loginBtn");
-const loginError = document.getElementById("loginError");
-
+// 🔹 Login
 loginBtn.onclick = ()=>{
-  const email = document.getElementById("clientEmail").value;
-  const password = document.getElementById("clientPassword").value;
-  loginError.textContent="";
+  const email = loginEmail.value.trim();
+  const pass = loginPassword.value.trim();
+  if(!email || !pass) return alert("Veuillez remplir email et mot de passe");
 
-  auth.signInWithEmailAndPassword(email,password)
-  .then(res=>{
-    const user = res.user;
-    currentUserUid = user.uid;
-    loginBox.style.display="none";
-    loadAllPoints();
-  })
-  .catch(err=>{
-    loginError.textContent="Erreur de connexion : email ou mot de passe incorrect";
-  });
+  auth.signInWithEmailAndPassword(email, pass)
+    .then(userCred=>{
+      currentUserUid = userCred.user.uid;
+      document.getElementById("loginOverlay").style.display="none";
+      loadPoints();
+    })
+    .catch(err=>{ alert("Erreur login: "+err.message); });
 };
 
-// 🔹 Charger tous les points, mais popup limité si pas propriétaire
-function loadAllPoints(){
+// 🔹 Charger points
+function loadPoints(){
   db.collection("points").onSnapshot(snapshot=>{
     snapshot.forEach(doc=>{
       const d = doc.data();
       const id = doc.id;
       const level = Math.min(Number(d.alertLevel),5);
 
-      const phenList = d.phenomena ? Object.entries(d.phenomena).filter(([k,v])=>v).map(([k])=>phenLabels[k]).join("<br>") || "-" : "-";
+      const phenList = d.phenomena
+        ? Object.entries(d.phenomena).filter(([k,v])=>v).map(([k])=>phenLabels[k]).join("<br>") || "-"
+        : "-";
 
-      // 🔹 Déterminer le contenu du popup selon le propriétaire
-      let popupHTML;
-      if(d.userId === currentUserUid){
-        popupHTML = `
-          <div class="popup-box">
-            <div class="popup-title">${d.name}</div>
-            <div class="popup-location">${d.location}</div>
-            <div style="text-align:center;">
-              <span class="vigi-badge vigi-${level}">${vigilanceText[level]}</span>
-            </div>
-            <div class="popup-section"><div class="popup-label">Type :</div>${d.phenomenonType || "-"}</div>
-            <div class="popup-section"><div class="popup-label">Phénomènes associés :</div>${phenList}</div>
-            <div class="popup-section"><div class="popup-label">Description :</div>${d.description || "-"}</div>
-            <div class="popup-section"><div class="popup-label">Mise à jour :</div>${d.updatedAt?.toDate ? d.updatedAt.toDate().toLocaleString() : "-"}</div>
-          </div>
-        `;
-      } else {
-        popupHTML = `<div class="popup-box" style="text-align:center;color:red;font-weight:bold;">Vous ne pouvez pas accéder aux informations d'un autre utilisateur</div>`;
-      }
+      const popupHTML = (d.userId===currentUserUid)
+        ? `<div class="popup-box">
+             <div class="popup-title">${d.name}</div>
+             <div class="popup-location">${d.location}</div>
+             <div style="text-align:center;">
+               <span class="vigi-badge vigi-${level}">${vigilanceText[level]}</span>
+             </div>
+             <div class="popup-section"><div class="popup-label">Type :</div>${d.phenomenonType || "-"}</div>
+             <div class="popup-section"><div class="popup-label">Phénomènes associés :</div>${phenList}</div>
+             <div class="popup-section"><div class="popup-label">Description :</div>${d.description || "-"}</div>
+             <div class="popup-section"><div class="popup-label">Mise à jour :</div>${d.updatedAt?.toDate ? d.updatedAt.toDate().toLocaleString() : "-"}</div>
+           </div>`
+        : `<div class="popup-box" style="text-align:center;font-weight:bold;color:red;">Impossible de voir les informations de cet utilisateur</div>`;
 
       if(!markers[id]){
         markers[id]=L.marker([d.lat,d.lng],{icon:icons[level]}).addTo(map).bindPopup(popupHTML);
@@ -187,12 +183,9 @@ function loadAllPoints(){
         circles[id].setStyle({color:circleColors[level],fillColor:circleColors[level]});
       }
 
-      // 🔹 Clignotement à partir de niveau 3
       if(level>=3 && !blinkTimers[id]){
         let v=true;
-        blinkTimers[id]=setInterval(()=>{
-          if(markers[id]._icon){ markers[id]._icon.style.opacity=v?"0.35":"1"; v=!v; }
-        },600);
+        blinkTimers[id]=setInterval(()=>{ if(markers[id]._icon){markers[id]._icon.style.opacity=v?"0.35":"1"; v=!v;} },600);
       }
       if(level<3 && blinkTimers[id]){
         clearInterval(blinkTimers[id]);
@@ -203,5 +196,6 @@ function loadAllPoints(){
   });
 }
 </script>
+
 </body>
 </html>
