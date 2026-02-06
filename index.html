@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<title>Carte client Vigimap</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
+
+<style>
+html, body { height:100%; margin:0; font-family:Arial,sans-serif; }
+#map { width:100%; height:100%; }
+
+/* ===== POPUP ESTHÉTIQUE ===== */
+.leaflet-popup-content { margin:10px; font-size:14px; line-height:1.45; }
+.popup-box { min-width:260px; }
+.popup-title { font-size:18px; font-weight:bold; text-align:center; }
+.popup-location { text-align:center; font-size:13px; color:#7f8c8d; margin-bottom:8px; }
+.popup-section { border-top:1px solid #e6e6e6; padding:6px 0; }
+.popup-label { font-weight:bold; color:#2c3e50; }
+
+.vigi-badge {
+  display:inline-block;
+  padding:5px 10px;
+  border-radius:14px;
+  font-size:13px;
+  font-weight:bold;
+  color:white;
+  margin:4px auto;
+}
+.vigi-1 { background:#2ecc71; }
+.vigi-2 { background:#f1c40f; color:#000; }
+.vigi-3 { background:#e67e22; }
+.vigi-4 { background:#e74c3c; }
+.vigi-5 { background:#9b59b6; }
+
+/* ===== LOGO ===== */
+#logo-vigimap {
+  position:absolute;
+  top:14px;
+  left:50px;
+  z-index:1000;
+}
+#logo-vigimap img { height:180px; }
+
+/* ===== LÉGENDE ===== */
+#legend {
+  position:absolute;
+  bottom:20px;
+  right:20px;
+  background:white;
+  padding:10px;
+  border-radius:8px;
+  box-shadow:0 3px 10px rgba(0,0,0,0.3);
+  font-size:13px;
+  z-index:1000;
+}
+#legend div { display:flex; align-items:center; gap:6px; margin-bottom:4px; }
+.legend-color { width:16px; height:16px; border-radius:4px; }
+
+/* ===== AUTHENTIFICATION CLIENT ===== */
+#loginBox {
+  position:absolute; top:50%; left:50%; transform:translate(-50%,-50%);
+  background:white; padding:20px; border-radius:12px;
+  box-shadow:0 4px 12px rgba(0,0,0,0.25); z-index:2000;
+  width:280px; text-align:center;
+}
+#loginBox input { width:100%; padding:8px; margin:6px 0; border-radius:6px; border:1px solid #ccc; }
+#loginBox button { padding:10px 0; margin-top:10px; width:100%; border:none; border-radius:6px; background:#2c3e50; color:white; font-size:15px; cursor:pointer; }
+</style>
+</head>
+
+<body>
+
+<div id="map"></div>
+
+<div id="logo-vigimap">
+  <img src="https://primary.jwwb.nl/public/q/t/q/temp-uozhroxmecrdemnjgoky/logo_initiale_marron-_gourmand_-l-gant_minimaliste__9_-removebg-preview-high.png?enable-io=true&width=532">
+</div>
+
+<div id="legend">
+  <div><span class="legend-color" style="background:green;"></span> Aucuns phénomènes prévus</div>
+  <div><span class="legend-color" style="background:yellow;"></span> Phénomènes faibles / modérés possibles</div>
+  <div><span class="legend-color" style="background:orange;"></span> Phénomènes forts possibles</div>
+  <div><span class="legend-color" style="background:red;"></span> Phénomènes violents possibles</div>
+  <div><span class="legend-color" style="background:purple;"></span> Phénomènes extrêmes prévus</div>
+</div>
+
+<div id="loginBox">
+  <h3>Connexion Client</h3>
+  <input type="email" id="clientEmail" placeholder="Email">
+  <input type="password" id="clientPassword" placeholder="Mot de passe">
+  <button id="loginBtn">Se connecter</button>
+  <div id="loginError" style="color:red;margin-top:8px;"></div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+
+<script>
+// 🔹 Firebase init
+firebase.initializeApp({
+  apiKey:"AIzaSyDqb1u1HSfjmE-lE4ml9NrwGbAKCjf1D5o",
+  authDomain:"vigimap-966e9.firebaseapp.com",
+  projectId:"vigimap-966e9"
+});
+const auth = firebase.auth();
+const db = firebase.firestore();
+
+const map = L.map("map").setView([44.35,2.57],10);
+L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png").addTo(map);
+
+const baseIcon = { iconSize:[36,36], iconAnchor:[18,18], popupAnchor:[0,-22] };
+const icons = {
+  1:L.icon({...baseIcon,iconUrl:"https://primary.jwwb.nl/public/q/t/q/temp-uozhroxmecrdemnjgoky/logo_initiale_marron-_gourmand_-l-gant_minimaliste__10_-removebg-preview-high.png?enable-io=true&width=532"}),
+  2:L.icon({...baseIcon,iconUrl:"https://primary.jwwb.nl/public/q/t/q/temp-uozhroxmecrdemnjgoky/logo_initiale_marron-_gourmand_-l-gant_minimaliste__11_-removebg-preview-high.png?enable-io=true&width=532"}),
+  3:L.icon({...baseIcon,iconUrl:"https://primary.jwwb.nl/public/q/t/q/temp-uozhroxmecrdemnjgoky/logo_initiale_marron-_gourmand_-l-gant_minimaliste__12_-removebg-preview-high.png?enable-io=true&width=532"}),
+  4:L.icon({...baseIcon,iconUrl:"https://primary.jwwb.nl/public/q/t/q/temp-uozhroxmecrdemnjgoky/logo_initiale_marron-_gourmand_-l-gant_minimaliste__13_-removebg-preview-high.png?enable-io=true&width=532"}),
+  5:L.icon({...baseIcon,iconUrl:"https://primary.jwwb.nl/public/q/t/q/temp-uozhroxmecrdemnjgoky/logo_initiale_marron-_gourmand_-l-gant_minimaliste__14_-removebg-preview-high.png?enable-io=true&width=532"})
+};
+
+const vigilanceText = {1:"Aucuns phénomènes prévus",2:"Phénomènes faibles / modérés possibles",3:"Phénomènes forts possibles",4:"Phénomènes violents possibles",5:"Phénomènes extrêmes prévus"};
+const phenLabels = {rafales:"Fortes rafales de vent possibles",petiteGrele:"Grêle de petite taille possible",grelleMoyenne:"Grêle de taille moyenne possible",grelleGrosse:"Grêle de grosse taille possible",fortesPrecip:"Fortes précipitations possibles",activiteElec:"Orage avec forte activité électrique possible",ruissements:"Risque de ruissellements possibles"};
+const circleColors = {1:"#2ecc71",2:"#f1c40f",3:"#e67e22",4:"#e74c3c",5:"#9b59b6"};
+
+const markers={}, circles={}, blinkTimers={};
+let currentUserUid = null;
+
+// 🔹 Auth client
+const loginBox = document.getElementById("loginBox");
+const loginBtn = document.getElementById("loginBtn");
+const loginError = document.getElementById("loginError");
+
+loginBtn.onclick = ()=>{
+  const email = document.getElementById("clientEmail").value;
+  const password = document.getElementById("clientPassword").value;
+  loginError.textContent="";
+
+  auth.signInWithEmailAndPassword(email,password)
+  .then(res=>{
+    const user = res.user;
+    currentUserUid = user.uid;
+    loginBox.style.display="none";
+    loadAllPoints();
+  })
+  .catch(err=>{
+    loginError.textContent="Erreur de connexion : email ou mot de passe incorrect";
+  });
+};
+
+// 🔹 Charger tous les points, mais popup limité si pas propriétaire
+function loadAllPoints(){
+  db.collection("points").onSnapshot(snapshot=>{
+    snapshot.forEach(doc=>{
+      const d = doc.data();
+      const id = doc.id;
+      const level = Math.min(Number(d.alertLevel),5);
+
+      const phenList = d.phenomena ? Object.entries(d.phenomena).filter(([k,v])=>v).map(([k])=>phenLabels[k]).join("<br>") || "-" : "-";
+
+      // 🔹 Déterminer le contenu du popup selon le propriétaire
+      let popupHTML;
+      if(d.userId === currentUserUid){
+        popupHTML = `
+          <div class="popup-box">
+            <div class="popup-title">${d.name}</div>
+            <div class="popup-location">${d.location}</div>
+            <div style="text-align:center;">
+              <span class="vigi-badge vigi-${level}">${vigilanceText[level]}</span>
+            </div>
+            <div class="popup-section"><div class="popup-label">Type :</div>${d.phenomenonType || "-"}</div>
+            <div class="popup-section"><div class="popup-label">Phénomènes associés :</div>${phenList}</div>
+            <div class="popup-section"><div class="popup-label">Description :</div>${d.description || "-"}</div>
+            <div class="popup-section"><div class="popup-label">Mise à jour :</div>${d.updatedAt?.toDate ? d.updatedAt.toDate().toLocaleString() : "-"}</div>
+          </div>
+        `;
+      } else {
+        popupHTML = `<div class="popup-box" style="text-align:center;color:red;font-weight:bold;">Vous ne pouvez pas accéder aux informations d'un autre utilisateur</div>`;
+      }
+
+      if(!markers[id]){
+        markers[id]=L.marker([d.lat,d.lng],{icon:icons[level]}).addTo(map).bindPopup(popupHTML);
+        circles[id]=L.circle([d.lat,d.lng],{radius:1300,color:circleColors[level],fillColor:circleColors[level],fillOpacity:0.15}).addTo(map);
+      } else {
+        markers[id].setIcon(icons[level]).setPopupContent(popupHTML);
+        circles[id].setStyle({color:circleColors[level],fillColor:circleColors[level]});
+      }
+
+      // 🔹 Clignotement à partir de niveau 3
+      if(level>=3 && !blinkTimers[id]){
+        let v=true;
+        blinkTimers[id]=setInterval(()=>{
+          if(markers[id]._icon){ markers[id]._icon.style.opacity=v?"0.35":"1"; v=!v; }
+        },600);
+      }
+      if(level<3 && blinkTimers[id]){
+        clearInterval(blinkTimers[id]);
+        delete blinkTimers[id];
+        if(markers[id]._icon) markers[id]._icon.style.opacity="1";
+      }
+    });
+  });
+}
+</script>
+</body>
+</html>
