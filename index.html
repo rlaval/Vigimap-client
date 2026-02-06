@@ -70,6 +70,20 @@ html, body { height:100%; margin:0; font-family:Arial,sans-serif; }
 }
 #loginBox input { padding:8px; border-radius:6px; border:1px solid #ccc; width:100%; }
 #loginBox button { padding:10px; border:none; border-radius:6px; background:#2c3e50; color:white; cursor:pointer; font-size:15px; }
+
+/* ===== INFOS CLIENT ===== */
+#clientInfo {
+  position:absolute;
+  bottom:10px;
+  left:10px;
+  background:white;
+  padding:10px 14px;
+  border-radius:8px;
+  box-shadow:0 4px 12px rgba(0,0,0,0.2);
+  font-family:Arial,sans-serif;
+  font-size:14px;
+  z-index:1000;
+}
 </style>
 </head>
 
@@ -99,6 +113,9 @@ html, body { height:100%; margin:0; font-family:Arial,sans-serif; }
   </div>
 </div>
 
+<!-- INFOS CLIENT -->
+<div id="clientInfo">Chargement des informations...</div>
+
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
@@ -121,10 +138,10 @@ L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png").addTo(map);
 // 🔹 Icônes et labels
 const baseIcon = { iconSize:[36,36], iconAnchor:[18,18], popupAnchor:[0,-22] };
 const icons = {
-  1:L.icon({...baseIcon, iconUrl:"https://primary.jwwb.nl/public/q/t/q/temp-uozhroxmecrdemnjgoky/logo_initiale_marron-_gourmand_-l-gant_minimaliste__10_-removebg-preview-high.png?enable-io=true&width=532"}),
-  2:L.icon({...baseIcon, iconUrl:"https://primary.jwwb.nl/public/q/t/q/temp-uozhroxmecrdemnjgoky/logo_initiale_marron-_gourmand_-l-gant_minimaliste__11_-removebg-preview-high.png?enable-io=true&width=532"}),
-  3:L.icon({...baseIcon, iconUrl:"https://primary.jwwb.nl/public/q/t/q/temp-uozhroxmecrdemnjgoky/logo_initiale_marron-_gourmand_-l-gant_minimaliste__12_-removebg-preview-high.png?enable-io=true&width=532"}),
-  4:L.icon({...baseIcon, iconUrl:"https://primary.jwwb.nl/public/q/t/q/temp-uozhroxmecrdemnjgoky/logo_initiale_marron-_gourmand_-l-gant_minimaliste__13_-removebg-preview-high.png?enable-io=true&width=532"}),
+  1:L.icon({...baseIcon, iconUrl:"https://primary.jwwb.nl/public/q/t/q/temp-uozhroxmecrdemnjgoky/logo_initiale_marron-_gourmand_-l-gant_minimaliste__10_-removebg-preview-high.png?enable-io=true&width=532"}), 
+  2:L.icon({...baseIcon, iconUrl:"https://primary.jwwb.nl/public/q/t/q/temp-uozhroxmecrdemnjgoky/logo_initiale_marron-_gourmand_-l-gant_minimaliste__11_-removebg-preview-high.png?enable-io=true&width=532"}), 
+  3:L.icon({...baseIcon, iconUrl:"https://primary.jwwb.nl/public/q/t/q/temp-uozhroxmecrdemnjgoky/logo_initiale_marron-_gourmand_-l-gant_minimaliste__12_-removebg-preview-high.png?enable-io=true&width=532"}), 
+  4:L.icon({...baseIcon, iconUrl:"https://primary.jwwb.nl/public/q/t/q/temp-uozhroxmecrdemnjgoky/logo_initiale_marron-_gourmand_-l-gant_minimaliste__13_-removebg-preview-high.png?enable-io=true&width=532"}), 
   5:L.icon({...baseIcon, iconUrl:"https://primary.jwwb.nl/public/q/t/q/temp-uozhroxmecrdemnjgoky/logo_initiale_marron-_gourmand_-l-gant_minimaliste__14_-removebg-preview-high.png?enable-io=true&width=532"})
 };
 const vigilanceText = {1:"Aucuns phénomènes prévus",2:"Phénomènes faibles / modérés possibles",3:"Phénomènes forts possibles",4:"Phénomènes violents possibles",5:"Phénomènes extrêmes prévus"};
@@ -133,6 +150,7 @@ const circleColors = {1:"#2ecc71",2:"#f1c40f",3:"#e67e22",4:"#e74c3c",5:"#9b59b6
 
 const markers={}, circles={}, blinkTimers={};
 let currentUserUid=null;
+const clientInfoDiv = document.getElementById("clientInfo");
 
 // 🔹 Login
 loginBtn.onclick = ()=>{
@@ -145,9 +163,27 @@ loginBtn.onclick = ()=>{
       currentUserUid = userCred.user.uid;
       document.getElementById("loginOverlay").style.display="none";
       loadPoints();
+      showClientInfo();
     })
     .catch(err=>{ alert("Erreur login: "+err.message); });
 };
+
+// 🔹 Affichage infos client en bas à gauche
+function showClientInfo(){
+  if(!currentUserUid) return;
+  db.collection("points").where("userId","==",currentUserUid)
+    .onSnapshot(snapshot=>{
+      if(snapshot.empty){
+        clientInfoDiv.textContent = "Aucune information disponible";
+        return;
+      }
+      // On prend le premier point
+      const point = snapshot.docs[0].data();
+      const email = auth.currentUser?.email || "-";
+      const typeSurveillance = point.phenomenonType || "-";
+      clientInfoDiv.textContent = `Email: ${email} | Type de surveillance: ${typeSurveillance}`;
+    });
+}
 
 // 🔹 Charger points
 function loadPoints(){
