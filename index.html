@@ -84,6 +84,37 @@ html, body { height:100%; margin:0; font-family:Arial,sans-serif; }
   font-size:14px;
   z-index:1000;
 }
+
+#modeToggle {
+  position: absolute;
+  top: 14px;
+  right: 20px;
+  z-index: 1000;
+  background: white;
+  border: none;
+  border-radius: 6px;
+  padding: 3px 20px;       /* bouton plus petit */
+  box-shadow: 0 2px 5px rgba(0,0,0,0.25);
+  cursor: pointer;
+  font-weight: bold;
+  display: flex;
+  align-items: center;
+  gap: 3px;               /* petit espace entre logo et texte */
+  font-size: 12px;         /* texte plus petit */
+}
+#modeToggle.dark { 
+  background:#2c3e50; 
+  color:white; 
+}
+#modeToggle img { 
+  width:14px; 
+  height:14px; 
+}  /* logo plus petit */
+
+#modeToggle.dark { background:#2c3e50; color:white; }
+
+</style>
+
 </style>
 </head>
 
@@ -92,7 +123,7 @@ html, body { height:100%; margin:0; font-family:Arial,sans-serif; }
 <div id="map"></div>
 
 <div id="logo-vigimap">
-  <img src="https://primary.jwwb.nl/public/q/t/q/temp-uozhroxmecrdemnjgoky/logo_initiale_marron-_gourmand_-l-gant_minimaliste__9_-removebg-preview-high.png?enable-io=true&width=532">
+  <img src="https://primary.jwwb.nl/public/q/t/q/temp-uozhroxmecrdemnjgoky/logo_initiale_marron-_gourmand_-l-gant_minimaliste__15_-removebg-preview-high.png?enable-io=true&width=532">
 </div>
 
 <div id="legend">
@@ -135,6 +166,91 @@ const auth = firebase.auth();
 const map = L.map("map").setView([44.35,2.57],10);
 L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png").addTo(map);
 
+// 🔹 Tile layers clair / sombre
+const lightLayer = L.tileLayer("https://{s}.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png");
+const darkLayer = L.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png");
+
+// Layer par défaut
+lightLayer.addTo(map);
+let currentLayer = "light";
+
+// 🔹 Bouton pour changer de mode avec logo
+const modeBtn = L.control({position: 'topright'});
+modeBtn.onAdd = function() {
+  const btn = L.DomUtil.create('button','');
+  btn.id = "modeToggle";
+
+  // Logo
+  const img = document.createElement("img");
+  img.src = "https://cdn-icons-png.flaticon.com/512/0/370.png";
+  btn.appendChild(img);
+
+  // Texte initial
+  const span = document.createElement("span");
+  span.textContent = "Carte claire";  // texte initial
+  btn.appendChild(span);
+
+  btn.onclick = ()=>{
+    const text = btn.querySelector("span");
+    if(currentLayer==="light"){
+      map.removeLayer(lightLayer);
+      darkLayer.addTo(map);
+      text.textContent = "Carte normale";  // texte quand mode gris activé
+      btn.classList.add("dark");
+      currentLayer="dark";
+    } else {
+      map.removeLayer(darkLayer);
+      lightLayer.addTo(map);
+      text.textContent = "Carte claire";   // texte quand mode clair activé
+      btn.classList.remove("dark");
+      currentLayer="light";
+    }
+  };
+  return btn;
+};
+modeBtn.addTo(map);
+
+// 🔹 Style pour les contours des départements
+const deptStyle = {
+  color: "#2c3e50",
+  weight: 1,
+  fillColor: "#2c3e50",
+  fillOpacity: 0.05
+};
+
+// 🔹 URL du GeoJSON simplifié des départements
+const deptGeojsonUrl =
+  "https://raw.githubusercontent.com/gregoiredavid/france-geojson/master/departements-version-simplifiee.geojson";
+
+// 🔹 Charger le GeoJSON et filtrer
+fetch(deptGeojsonUrl)
+  .then(response => response.json())
+  .then(data => {
+    // Codes INSEE des départements ciblés
+    const codesVoulu = ["46", "19", "15", "48", "12", "81", "82"];
+
+    const filtered = {
+      type: "FeatureCollection",
+      features: data.features.filter(
+        f => f.properties.code && codesVoulu.includes(f.properties.code)
+      )
+    };
+
+    // Ajouter les contours filtrés à la carte
+    L.geoJSON(filtered, {
+      style: deptStyle
+    }).addTo(map);
+
+  })
+  .catch(err =>
+    console.error("Erreur chargement GeoJSON départements:", err)
+  );
+
+
+
+
+
+
 // 🔹 Icônes et labels
 const baseIcon = { iconSize:[36,36], iconAnchor:[18,18], popupAnchor:[0,-22] };
 const icons = {
@@ -168,7 +284,6 @@ loginBtn.onclick = ()=>{
     .catch(err=>{ alert("Erreur login: "+err.message); });
 };
 
-// 🔹 Affichage infos client en bas à gauche
 function showClientInfo(){
   if(!currentUserUid) return;
   db.collection("points").where("userId","==",currentUserUid)
@@ -182,8 +297,12 @@ function showClientInfo(){
       const email = auth.currentUser?.email || "-";
       const typeSurveillance = point.phenomenonType || "-";
       clientInfoDiv.textContent = `Email: ${email} | Type de surveillance: ${typeSurveillance}`;
+
+      // 🔹 AJOUT : lancer l'animation ripple sur le point du client
+      animateClientPoint([point.lat, point.lng]);
     });
 }
+
 
 // 🔹 Charger points
 function loadPoints(){
@@ -204,9 +323,9 @@ function loadPoints(){
              <div style="text-align:center;">
                <span class="vigi-badge vigi-${level}">${vigilanceText[level]}</span>
              </div>
-             <div class="popup-section"><div class="popup-label">Type :</div>${d.phenomenonType || "-"}</div>
+             <div class="popup-section"><div class="popup-label">Surveillance :</div>${d.phenomenonType || "-"}</div>
              <div class="popup-section"><div class="popup-label">Phénomènes associés :</div>${phenList}</div>
-             <div class="popup-section"><div class="popup-label">Description :</div>${d.description || "-"}</div>
+             <div class="popup-section"><div class="popup-label">évolution proch. heures :</div>${d.description || "-"}</div>
              <div class="popup-section"><div class="popup-label">Mise à jour :</div>${d.updatedAt?.toDate ? d.updatedAt.toDate().toLocaleString() : "-"}</div>
            </div>`
         : `<div class="popup-box" style="text-align:center;font-weight:bold;color:red;">Impossible de voir les informations de cet utilisateur</div>`;
@@ -231,6 +350,45 @@ function loadPoints(){
     });
   });
 }
+
+// 🔹 Fonction pour animer le point du client connecté (ripple)
+function animateClientPoint(clientLatLng) {
+  const minRadius = 400;   // rayon minimum du ripple
+  const maxRadius = 1500;   // rayon maximum = 3x le point
+  let radius = minRadius;
+  let growing = true;
+
+  // Cercle attaché au point du client
+  const ripple = L.circle(clientLatLng, {
+    color: "#3498db",
+    fillColor: "#3498db",
+    fillOpacity: 0.3,
+    radius: radius
+  }).addTo(map);
+
+  // Animation ripple
+  const interval = 30; // vitesse de l'animation (ms)
+  const step = 25;     // incrément du rayon par frame
+
+  const timer = setInterval(() => {
+    // Ajuster le rayon
+    if (growing) {
+      radius += step;
+      if (radius >= maxRadius) growing = false;
+    } else {
+      radius -= step;
+      if (radius <= minRadius) growing = true;
+    }
+
+    ripple.setRadius(radius);
+    ripple.setLatLng(clientLatLng); // 🔹 force le cercle à rester centré
+  }, interval);
+
+  // Optionnel : recentrer la carte sur le point au départ
+  map.setView(clientLatLng, map.getZoom());
+}
+
+
 </script>
 
 </body>
