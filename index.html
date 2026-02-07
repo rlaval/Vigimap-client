@@ -281,7 +281,11 @@ loginBtn.onclick = ()=>{
       loadPoints();
       showClientInfo();
     })
-    .catch(err=>{ alert("Erreur login: "+err.message); });
+    .catch(err => {
+  console.log("Erreur login Firebase :", err); // pour toi seulement
+  alert("Incorrect"); // message client simple
+});
+
 };
 
 function showClientInfo(){
