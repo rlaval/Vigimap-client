@@ -93,14 +93,14 @@ html, body { height:100%; margin:0; font-family:Arial,sans-serif; }
   background: white;
   border: none;
   border-radius: 6px;
-  padding: 3px 20px;       /* bouton plus petit */
+  padding: 3px 20px;
   box-shadow: 0 2px 5px rgba(0,0,0,0.25);
   cursor: pointer;
   font-weight: bold;
   display: flex;
   align-items: center;
-  gap: 3px;               /* petit espace entre logo et texte */
-  font-size: 12px;         /* texte plus petit */
+  gap: 3px;
+  font-size: 12px;
 }
 #modeToggle.dark { 
   background:#2c3e50; 
@@ -109,13 +109,10 @@ html, body { height:100%; margin:0; font-family:Arial,sans-serif; }
 #modeToggle img { 
   width:14px; 
   height:14px; 
-}  /* logo plus petit */
-
+}
 #modeToggle.dark { background:#2c3e50; color:white; }
-
 </style>
 
-</style>
 </head>
 
 <body>
@@ -132,12 +129,14 @@ html, body { height:100%; margin:0; font-family:Arial,sans-serif; }
   <div><span class="legend-color" style="background:orange;"></span> Phénomènes forts possibles</div>
   <div><span class="legend-color" style="background:red;"></span> Phénomènes violents possibles</div>
   <div><span class="legend-color" style="background:purple;"></span> Phénomènes extrêmes prévus</div>
+  <div><img src="https://emojigraph.org/media/openmoji/red-triangle-pointed-up_1f53a.png" style="width:16px;height:16px;"> Surveillance grêle</div>
+  <div><img src="https://images.icon-icons.com/8/PNG/256/weather_wind_flag_storm_travel_1455.png" style="width:16px;height:16px;"> Surveillance vent violent</div>
 </div>
 
 <!-- LOGIN -->
 <div id="loginOverlay">
   <div id="loginBox">
-    <h3>Connexion Client</h3>
+    <h3>↯ Connexion Client</h3>
     <input id="loginEmail" type="email" placeholder="Email">
     <input id="loginPassword" type="password" placeholder="Mot de passe">
     <button id="loginBtn">Se connecter</button>
@@ -187,7 +186,7 @@ modeBtn.onAdd = function() {
 
   // Texte initial
   const span = document.createElement("span");
-  span.textContent = "Carte claire";  // texte initial
+  span.textContent = "Carte claire";  
   btn.appendChild(span);
 
   btn.onclick = ()=>{
@@ -195,13 +194,13 @@ modeBtn.onAdd = function() {
     if(currentLayer==="light"){
       map.removeLayer(lightLayer);
       darkLayer.addTo(map);
-      text.textContent = "Carte normale";  // texte quand mode gris activé
+      text.textContent = "Carte normale";  
       btn.classList.add("dark");
       currentLayer="dark";
     } else {
       map.removeLayer(darkLayer);
       lightLayer.addTo(map);
-      text.textContent = "Carte claire";   // texte quand mode clair activé
+      text.textContent = "Carte claire";  
       btn.classList.remove("dark");
       currentLayer="light";
     }
@@ -226,30 +225,14 @@ const deptGeojsonUrl =
 fetch(deptGeojsonUrl)
   .then(response => response.json())
   .then(data => {
-    // Codes INSEE des départements ciblés
     const codesVoulu = ["46", "19", "15", "48", "12", "81", "82"];
-
     const filtered = {
       type: "FeatureCollection",
-      features: data.features.filter(
-        f => f.properties.code && codesVoulu.includes(f.properties.code)
-      )
+      features: data.features.filter(f => f.properties.code && codesVoulu.includes(f.properties.code))
     };
-
-    // Ajouter les contours filtrés à la carte
-    L.geoJSON(filtered, {
-      style: deptStyle
-    }).addTo(map);
-
+    L.geoJSON(filtered, { style: deptStyle }).addTo(map);
   })
-  .catch(err =>
-    console.error("Erreur chargement GeoJSON départements:", err)
-  );
-
-
-
-
-
+  .catch(err => console.error("Erreur chargement GeoJSON départements:", err));
 
 // 🔹 Icônes et labels
 const baseIcon = { iconSize:[36,36], iconAnchor:[18,18], popupAnchor:[0,-22] };
@@ -264,8 +247,10 @@ const vigilanceText = {1:"Aucuns phénomènes prévus",2:"Phénomènes faibles /
 const phenLabels = {rafales:"Fortes rafales de vent possibles",petiteGrele:"Grêle de petite taille possible",grelleMoyenne:"Grêle de taille moyenne possible",grelleGrosse:"Grêle de grosse taille possible",fortesPrecip:"Fortes précipitations possibles",activiteElec:"Orage avec forte activité électrique possible",ruissements:"Risque de ruissellements possibles"};
 const circleColors = {1:"#2ecc71",2:"#f1c40f",3:"#e67e22",4:"#e74c3c",5:"#9b59b6"};
 
-const markers={}, circles={}, blinkTimers={};
+const markers={}, circles={}, blinkTimers={}, surveillanceMarkers={};
 let currentUserUid=null;
+let clientRipple = null;       // ⚡ Cercle animé client
+let clientRippleTimer = null;  // ⚡ Intervalle animation
 const clientInfoDiv = document.getElementById("clientInfo");
 
 // 🔹 Login
@@ -279,13 +264,13 @@ loginBtn.onclick = ()=>{
       currentUserUid = userCred.user.uid;
       document.getElementById("loginOverlay").style.display="none";
       loadPoints();
+      loadSurveillancePoints();
       showClientInfo();
     })
     .catch(err => {
-  console.log("Erreur login Firebase :", err); // pour toi seulement
-  alert("Incorrect"); // message client simple
-});
-
+      console.log("Erreur login Firebase :", err);
+      alert("Incorrect");
+    });
 };
 
 function showClientInfo(){
@@ -296,17 +281,13 @@ function showClientInfo(){
         clientInfoDiv.textContent = "Aucune information disponible";
         return;
       }
-      // On prend le premier point
       const point = snapshot.docs[0].data();
       const email = auth.currentUser?.email || "-";
       const typeSurveillance = point.phenomenonType || "-";
       clientInfoDiv.textContent = `Email: ${email} | Type de surveillance: ${typeSurveillance}`;
-
-      // 🔹 AJOUT : lancer l'animation ripple sur le point du client
-      animateClientPoint([point.lat, point.lng]);
+      animateClientPoint([point.lat, point.lng]); // ⚡ Animation cercle unique
     });
 }
-
 
 // 🔹 Charger points
 function loadPoints(){
@@ -315,11 +296,9 @@ function loadPoints(){
       const d = doc.data();
       const id = doc.id;
       const level = Math.min(Number(d.alertLevel),5);
-
       const phenList = d.phenomena
         ? Object.entries(d.phenomena).filter(([k,v])=>v).map(([k])=>phenLabels[k]).join("<br>") || "-"
         : "-";
-
       const popupHTML = (d.userId===currentUserUid)
         ? `<div class="popup-box">
              <div class="popup-title">${d.name}</div>
@@ -333,7 +312,6 @@ function loadPoints(){
              <div class="popup-section"><div class="popup-label">Mise à jour :</div>${d.updatedAt?.toDate ? d.updatedAt.toDate().toLocaleString() : "-"}</div>
            </div>`
         : `<div class="popup-box" style="text-align:center;font-weight:bold;color:red;">Impossible de voir les informations de cet utilisateur</div>`;
-
       if(!markers[id]){
         markers[id]=L.marker([d.lat,d.lng],{icon:icons[level]}).addTo(map).bindPopup(popupHTML);
         circles[id]=L.circle([d.lat,d.lng],{radius:1300,color:circleColors[level],fillColor:circleColors[level],fillOpacity:0.15}).addTo(map);
@@ -341,7 +319,6 @@ function loadPoints(){
         markers[id].setIcon(icons[level]).setPopupContent(popupHTML);
         circles[id].setStyle({color:circleColors[level],fillColor:circleColors[level]});
       }
-
       if(level>=3 && !blinkTimers[id]){
         let v=true;
         blinkTimers[id]=setInterval(()=>{ if(markers[id]._icon){markers[id]._icon.style.opacity=v?"0.35":"1"; v=!v;} },600);
@@ -355,43 +332,69 @@ function loadPoints(){
   });
 }
 
-// 🔹 Fonction pour animer le point du client connecté (ripple)
+// 🔹 Animation du cercle client (ripple unique)
 function animateClientPoint(clientLatLng) {
-  const minRadius = 400;   // rayon minimum du ripple
-  const maxRadius = 1500;   // rayon maximum = 3x le point
+  const minRadius = 400;   
+  const maxRadius = 1500;   
   let radius = minRadius;
   let growing = true;
 
-  // Cercle attaché au point du client
-  const ripple = L.circle(clientLatLng, {
+  // Supprime l'ancien cercle s'il existe
+  if(clientRipple){
+    map.removeLayer(clientRipple);
+    clientRipple = null;
+  }
+  if(clientRippleTimer){
+    clearInterval(clientRippleTimer);
+    clientRippleTimer = null;
+  }
+
+  // Crée le cercle avec fond transparent
+  clientRipple = L.circle(clientLatLng, {
     color: "#3498db",
-    fillColor: "#3498db",
-    fillOpacity: 0.3,
+    fillOpacity: 0,  // 🔹 fond transparent
+    weight: 3,
     radius: radius
   }).addTo(map);
 
-  // Animation ripple
-  const interval = 30; // vitesse de l'animation (ms)
-  const step = 25;     // incrément du rayon par frame
-
-  const timer = setInterval(() => {
-    // Ajuster le rayon
-    if (growing) {
+  // Animation "ripple"
+  const interval = 30;
+  const step = 25;
+  clientRippleTimer = setInterval(()=>{
+    if(growing){
       radius += step;
-      if (radius >= maxRadius) growing = false;
+      if(radius >= maxRadius) growing = false;
     } else {
       radius -= step;
-      if (radius <= minRadius) growing = true;
+      if(radius <= minRadius) growing = true;
     }
-
-    ripple.setRadius(radius);
-    ripple.setLatLng(clientLatLng); // 🔹 force le cercle à rester centré
+    clientRipple.setRadius(radius);
+    clientRipple.setLatLng(clientLatLng);
   }, interval);
 
-  // Optionnel : recentrer la carte sur le point au départ
+  // Centrer la carte sur le client
   map.setView(clientLatLng, map.getZoom());
 }
 
+// 🔹 Surveillance grêle / vent
+function loadSurveillancePoints(){
+  db.collection("surveillancePoints").onSnapshot(snapshot=>{
+    snapshot.forEach(doc=>{
+      const d = doc.data();
+      const id = doc.id;
+      let iconUrl="";
+      if(d.type==="grele") iconUrl="https://emojigraph.org/media/openmoji/red-triangle-pointed-up_1f53a.png";
+      if(d.type==="vent") iconUrl="https://images.icon-icons.com/8/PNG/256/weather_wind_flag_storm_travel_1455.png";
+      if(!surveillanceMarkers[id]){
+        surveillanceMarkers[id]=L.marker([d.lat,d.lng],{
+          icon:L.icon({iconUrl:iconUrl, iconSize:[30,30], iconAnchor:[15,15]})
+        }).addTo(map).bindPopup(d.type==="grele"?"Surveillance grêle":"Surveillance vent violent");
+      } else {
+        surveillanceMarkers[id].setLatLng([d.lat,d.lng]);
+      }
+    });
+  });
+}
 
 </script>
 
