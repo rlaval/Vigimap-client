@@ -396,6 +396,78 @@ function loadSurveillancePoints(){
   });
 }
 
+// 🔹 Création de la légende dynamique pour surveillance
+const surveillanceLegendDiv = document.createElement("div");
+surveillanceLegendDiv.id = "surveillanceLegend";
+surveillanceLegendDiv.style.position = "absolute";
+surveillanceLegendDiv.style.bottom = "58px";
+surveillanceLegendDiv.style.left = "10px";
+surveillanceLegendDiv.style.background = "white";
+surveillanceLegendDiv.style.padding = "8px 12px";
+surveillanceLegendDiv.style.borderRadius = "8px";
+surveillanceLegendDiv.style.boxShadow = "0 4px 12px rgba(0,0,0,0.2)";
+surveillanceLegendDiv.style.fontSize = "14px";
+surveillanceLegendDiv.style.zIndex = 1000;
+surveillanceLegendDiv.style.display = "flex";
+surveillanceLegendDiv.style.alignItems = "center";
+surveillanceLegendDiv.style.gap = "12px";
+
+// Structure initiale
+surveillanceLegendDiv.innerHTML = `
+  <div style="display:flex;align-items:center;gap:4px;">
+    <img src="https://emojigraph.org/media/openmoji/red-triangle-pointed-up_1f53a.png" style="width:18px;height:18px;">
+    <span id="greleCount">Surveillance Grêle = 0</span>
+  </div>
+  <div style="display:flex;align-items:center;gap:4px;">
+    <img src="https://images.icon-icons.com/8/PNG/256/weather_wind_flag_storm_travel_1455.png" style="width:18px;height:18px;">
+    <span id="ventCount">Surveillance Vent = 0</span>
+  </div>
+`;
+document.body.appendChild(surveillanceLegendDiv);
+
+// 🔹 Compteurs dynamiques
+function updateSurveillanceLegend(){
+  let grele = 0;
+  let vent = 0;
+  Object.values(surveillanceMarkers).forEach(m=>{
+    const type = m.options.type;
+    if(type==="grele") grele++;
+    if(type==="vent") vent++;
+  });
+  document.getElementById("greleCount").textContent = `Surveillance Grêle = ${grele}`;
+  document.getElementById("ventCount").textContent = `Surveillance Vent = ${vent}`;
+}
+
+// 🔹 Modification de loadSurveillancePoints() pour intégrer popup date/heure et compteur
+function loadSurveillancePoints(){
+  db.collection("surveillancePoints").onSnapshot(snapshot=>{
+    snapshot.forEach(doc=>{
+      const d = doc.data();
+      const id = doc.id;
+      let iconUrl="";
+      if(d.type==="grele") iconUrl="https://emojigraph.org/media/openmoji/red-triangle-pointed-up_1f53a.png";
+      if(d.type==="vent") iconUrl="https://images.icon-icons.com/8/PNG/256/weather_wind_flag_storm_travel_1455.png";
+
+      // Marqueur avec info date/heure
+      const popupText = `${d.type==="grele" ? "Surveillance grêle" : "Surveillance vent"}<br>
+                         Mise à jour : ${d.createdAt?.toDate ? d.createdAt.toDate().toLocaleString() : "-"}`;
+
+      if(!surveillanceMarkers[id]){
+        surveillanceMarkers[id]=L.marker([d.lat,d.lng],{
+          icon:L.icon({iconUrl:iconUrl, iconSize:[30,30], iconAnchor:[15,15]}),
+          type:d.type // ⚡ Stocker type pour le compteur
+        }).addTo(map).bindPopup(popupText);
+      } else {
+        surveillanceMarkers[id].setLatLng([d.lat,d.lng]);
+        surveillanceMarkers[id].bindPopup(popupText);
+      }
+    });
+
+    // ⚡ Mettre à jour les compteurs
+    updateSurveillanceLegend();
+  });
+}
+
 </script>
 
 </body>
