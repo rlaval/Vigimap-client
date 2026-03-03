@@ -85,6 +85,8 @@ html, body { height:100%; margin:0; font-family:Arial,sans-serif; }
   z-index:1000;
 }
 
+
+
 #modeToggle {
   position: absolute;
   top: 14px;
@@ -111,6 +113,58 @@ html, body { height:100%; margin:0; font-family:Arial,sans-serif; }
   height:14px; 
 }
 #modeToggle.dark { background:#2c3e50; color:white; }
+
+/* Overlay modal */
+#clientModal {
+  position: fixed;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  background: rgba(0,0,0,0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 3000;
+}
+
+/* Contenu modal */
+#clientModalContent {
+  background: white;
+  padding: 20px;
+  border-radius: 12px;
+  max-width: 600px;
+  width: 90%;
+  max-height: 85%;
+  overflow-y: auto;
+  position: relative;
+  font-family: Arial,sans-serif;
+}
+
+/* Croix fermeture */
+#clientModalClose {
+  position: absolute;
+  top: 10px; right: 12px;
+  font-size: 22px;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+/* Sections internes */
+#clientModalBox .popup-section {
+  margin-bottom: 8px;
+}
+#clientModalBox .popup-title {
+  font-size: 20px;
+  font-weight: bold;
+  text-align: center;
+}
+#clientModalBox .popup-location {
+  font-size: 13px;
+  color: #7f8c8d;
+  text-align: center;
+  margin-bottom: 6px;
+}
+
+
 </style>
 
 </head>
@@ -143,8 +197,17 @@ html, body { height:100%; margin:0; font-family:Arial,sans-serif; }
   </div>
 </div>
 
+<!-- Fenêtre popup client indépendante -->
+<div id="clientModal" style="display:none;">
+  <div id="clientModalContent">
+    <span id="clientModalClose">&times;</span>
+    <div id="clientModalBox"></div>
+  </div>
+</div>
+
 <!-- INFOS CLIENT -->
 <div id="clientInfo">Chargement des informations...</div>
+
 
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
@@ -275,30 +338,89 @@ loginBtn.onclick = ()=>{
 
 function showClientInfo(){
   if(!currentUserUid) return;
+
   db.collection("points").where("userId","==",currentUserUid)
     .onSnapshot(snapshot=>{
       if(snapshot.empty){
         clientInfoDiv.textContent = "Aucune information disponible";
         return;
       }
+
       const point = snapshot.docs[0].data();
       const email = auth.currentUser?.email || "-";
       const typeSurveillance = point.phenomenonType || "-";
       clientInfoDiv.textContent = `Email: ${email} | Type de surveillance: ${typeSurveillance}`;
       animateClientPoint([point.lat, point.lng]); // ⚡ Animation cercle unique
+
+      // 🔹 AJOUTER ICI : récupérer la frise depuis hourlyForecasts
+      const today = new Date().toISOString().slice(0,10); // date du jour "YYYY-MM-DD"
+      db.collection("hourlyForecasts")
+        .get()
+        .then(snapshot=>{
+          snapshot.forEach(doc=>{
+            const data = doc.data();
+            if(doc.id.startsWith(currentUserUid + "_" + today)){ // point client + date
+              displayClientTimeline(data.hours);
+            }
+          });
+        });
     });
 }
 
 // 🔹 Charger points
 function loadPoints(){
   db.collection("points").onSnapshot(snapshot=>{
-    snapshot.forEach(doc=>{
+    snapshot.forEach(async doc=>{
       const d = doc.data();
       const id = doc.id;
       const level = Math.min(Number(d.alertLevel),5);
+
+      // Liste des phénomènes
       const phenList = d.phenomena
         ? Object.entries(d.phenomena).filter(([k,v])=>v).map(([k])=>phenLabels[k]).join("<br>") || "-"
         : "-";
+
+      // 🔹 Frise horaire et texte prochains jours (pour utilisateur courant uniquement)
+      let hourlyHTML = "-";
+      let nextDaysText = "-";
+      let friseDate = "-";
+      let decisionHelp = d.description || "-"; // ⚡ Reprendre "Description / aide à la décision" du tableau de bord
+
+      if(d.userId === currentUserUid){
+        try{
+          const snapDate = d.jourAModifier || new Date().toISOString().slice(0,10); // Date saisie sur le tableau de bord
+          friseDate = snapDate;
+
+          const snap = await db.collection("hourlyForecasts").doc(id + "_" + snapDate).get();
+          if(snap.exists){
+            const hoursData = snap.data().hours || {};
+            nextDaysText = snap.data().nextDaysText || "-";
+
+            // ⚡ Fonction pour formater la date
+            function formatDateLong(dateString) {
+              const date = new Date(dateString);
+              const options = { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' };
+              return date.toLocaleDateString('fr-FR', options); // ex: "Mardi 03 Mars 2026"
+            }
+
+            // ⚡ Création frise HTML toutes les 2h avec heure visible, pas de cadre blanc
+            hourlyHTML = `<div style="text-align:center; font-weight:bold; margin-bottom:4px;">${formatDateLong(friseDate)}</div>`;
+            hourlyHTML += '<div style="display:flex; gap:2px; justify-content:center; align-items:flex-end;">';
+            for(let h=0; h<24; h+=2){
+              const val = hoursData[h] || 0;
+              const colorMap = {0:"#27ae60",1:"#f1c40f",2:"#e67e22",3:"#e74c3c",4:"#9b59b6"};
+              hourlyHTML += `
+                <div style="display:flex; flex-direction:column; align-items:center;">
+                  <div style="width:18px; height:${(val+1)*10}px; background:${colorMap[val]}; border:1px solid #ccc;" title="${h}h"></div>
+                  <div style="font-size:10px; margin-top:2px;">${h}h</div>
+                </div>
+              `;
+            }
+            hourlyHTML += '</div>';
+          }
+        } catch(e){ console.log(e); }
+      }
+
       const popupHTML = (d.userId===currentUserUid)
         ? `<div class="popup-box">
              <div class="popup-title">${d.name}</div>
@@ -308,17 +430,39 @@ function loadPoints(){
              </div>
              <div class="popup-section"><div class="popup-label">Surveillance :</div>${d.phenomenonType || "-"}</div>
              <div class="popup-section"><div class="popup-label">Phénomènes associés :</div>${phenList}</div>
-             <div class="popup-section"><div class="popup-label">évolution proch. heures :</div>${d.description || "-"}</div>
+             <div class="popup-section"><div class="popup-label">Évolution prochaines heures :</div>${hourlyHTML}</div>
+             <div class="popup-section"><div class="popup-label">Aide à la prise de décisions :</div>${decisionHelp}</div>
+             <div class="popup-section"><div class="popup-label">Évolution prochains jours :</div>${nextDaysText}</div>
              <div class="popup-section"><div class="popup-label">Mise à jour :</div>${d.updatedAt?.toDate ? d.updatedAt.toDate().toLocaleString() : "-"}</div>
            </div>`
         : `<div class="popup-box" style="text-align:center;font-weight:bold;color:red;">Impossible de voir les informations de cet utilisateur</div>`;
+
       if(!markers[id]){
-        markers[id]=L.marker([d.lat,d.lng],{icon:icons[level]}).addTo(map).bindPopup(popupHTML);
-        circles[id]=L.circle([d.lat,d.lng],{radius:1300,color:circleColors[level],fillColor:circleColors[level],fillOpacity:0.15}).addTo(map);
+        // 🔹 Marqueur
+        markers[id] = L.marker([d.lat,d.lng], {icon: icons[level]})
+            .addTo(map)
+            .on("click", () => {
+                openClientModal(popupHTML); // ouvre la modal centrée
+            });
+
+        // 🔹 Cercle de couleur
+        circles[id] = L.circle([d.lat,d.lng], {
+            radius: 1300,
+            color: circleColors[level],
+            fillColor: circleColors[level],
+            fillOpacity: 0.15
+        }).addTo(map);
+
       } else {
-        markers[id].setIcon(icons[level]).setPopupContent(popupHTML);
-        circles[id].setStyle({color:circleColors[level],fillColor:circleColors[level]});
+        // 🔹 Met à jour l'icône et la couleur du cercle
+        markers[id].setIcon(icons[level]);
+        circles[id].setStyle({
+            color: circleColors[level],
+            fillColor: circleColors[level]
+        });
       }
+
+      // Effet clignotant pour vigilance >=3
       if(level>=3 && !blinkTimers[id]){
         let v=true;
         blinkTimers[id]=setInterval(()=>{ if(markers[id]._icon){markers[id]._icon.style.opacity=v?"0.35":"1"; v=!v;} },600);
@@ -466,6 +610,57 @@ function loadSurveillancePoints(){
     // ⚡ Mettre à jour les compteurs
     updateSurveillanceLegend();
   });
+}
+
+function displayClientTimeline(hours){
+  const container = document.getElementById("hourlyTimelineClient");
+  container.innerHTML = ""; // vide avant d'ajouter
+  Object.keys(hours).sort().forEach(h=>{
+    const val = hours[h];
+    const block = document.createElement("div");
+    block.style.width = "14px";
+    block.style.height = (val+1)*10 + "px"; // hauteur simple
+    block.style.background = colors[val];
+    container.appendChild(block);
+  });
+}
+
+function createPopupTimeline(hours) {
+    if(!hours || Object.keys(hours).length === 0) return "Pas de données pour aujourd'hui";
+    let html = '<div style="display:flex;gap:2px; justify-content:center;">';
+    Object.keys(hours).sort().forEach(h => {
+        const val = hours[h]; 
+        const color = colors[val] || "#ccc"; // couleurs déjà définies
+        const height = (val+1)*8; // hauteur dynamique
+        html += `<div style="width:12px;height:${height}px;background:${color};"></div>`;
+    });
+    html += "</div>";
+    return html;
+}
+
+const colors = {
+  0:"#27ae60", // vert
+  1:"#f1c40f", // jaune
+  2:"#e67e22", // orange
+  3:"#e74c3c", // rouge
+  4:"#9b59b6"  // violet
+};
+
+function openClientModal(popupHTML) {
+  const modal = document.getElementById("clientModal");
+  const modalBox = document.getElementById("clientModalBox");
+  modalBox.innerHTML = popupHTML;  // réutilise le contenu du popup actuel
+  modal.style.display = "flex";
+
+  // Fermer la modal en cliquant sur la croix
+  document.getElementById("clientModalClose").onclick = () => {
+    modal.style.display = "none";
+  };
+
+  // Fermer la modal en cliquant sur l’overlay
+  modal.onclick = (e) => {
+    if(e.target === modal) modal.style.display = "none";
+  };
 }
 
 </script>
