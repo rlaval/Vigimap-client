@@ -85,8 +85,6 @@ html, body { height:100%; margin:0; font-family:Arial,sans-serif; }
   z-index:1000;
 }
 
-
-
 #modeToggle {
   position: absolute;
   top: 14px;
@@ -112,7 +110,6 @@ html, body { height:100%; margin:0; font-family:Arial,sans-serif; }
   width:14px; 
   height:14px; 
 }
-#modeToggle.dark { background:#2c3e50; color:white; }
 
 /* Overlay modal */
 #clientModal {
@@ -163,12 +160,9 @@ html, body { height:100%; margin:0; font-family:Arial,sans-serif; }
   text-align: center;
   margin-bottom: 6px;
 }
-
-
 </style>
 
 </head>
-
 <body>
 
 <div id="map"></div>
@@ -208,7 +202,6 @@ html, body { height:100%; margin:0; font-family:Arial,sans-serif; }
 <!-- INFOS CLIENT -->
 <div id="clientInfo">Chargement des informations...</div>
 
-
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
@@ -241,17 +234,12 @@ const modeBtn = L.control({position: 'topright'});
 modeBtn.onAdd = function() {
   const btn = L.DomUtil.create('button','');
   btn.id = "modeToggle";
-
-  // Logo
   const img = document.createElement("img");
   img.src = "https://cdn-icons-png.flaticon.com/512/0/370.png";
   btn.appendChild(img);
-
-  // Texte initial
   const span = document.createElement("span");
   span.textContent = "Carte claire";  
   btn.appendChild(span);
-
   btn.onclick = ()=>{
     const text = btn.querySelector("span");
     if(currentLayer==="light"){
@@ -272,33 +260,19 @@ modeBtn.onAdd = function() {
 };
 modeBtn.addTo(map);
 
-// 🔹 Style pour les contours des départements
-const deptStyle = {
-  color: "#2c3e50",
-  weight: 1,
-  fillColor: "#2c3e50",
-  fillOpacity: 0.05
-};
-
-// 🔹 URL du GeoJSON simplifié des départements
-const deptGeojsonUrl =
-  "https://raw.githubusercontent.com/gregoiredavid/france-geojson/master/departements-version-simplifiee.geojson";
-
-// 🔹 Charger le GeoJSON et filtrer
+// 🔹 Style départements
+const deptStyle = { color:"#2c3e50", weight:1, fillColor:"#2c3e50", fillOpacity:0.05 };
+const deptGeojsonUrl = "https://raw.githubusercontent.com/gregoiredavid/france-geojson/master/departements-version-simplifiee.geojson";
 fetch(deptGeojsonUrl)
-  .then(response => response.json())
-  .then(data => {
-    const codesVoulu = ["46", "19", "15", "48", "12", "81", "82"];
-    const filtered = {
-      type: "FeatureCollection",
-      features: data.features.filter(f => f.properties.code && codesVoulu.includes(f.properties.code))
-    };
-    L.geoJSON(filtered, { style: deptStyle }).addTo(map);
+  .then(res=>res.json())
+  .then(data=>{
+    const codesVoulu=["46","19","15","48","12","81","82"];
+    const filtered={type:"FeatureCollection",features:data.features.filter(f=>f.properties.code && codesVoulu.includes(f.properties.code))};
+    L.geoJSON(filtered,{style:deptStyle}).addTo(map);
   })
-  .catch(err => console.error("Erreur chargement GeoJSON départements:", err));
+  .catch(err=>console.error("Erreur GeoJSON:",err));
 
-// 🔹 Icônes et labels
-const baseIcon = { iconSize:[36,36], iconAnchor:[18,18], popupAnchor:[0,-22] };
+const baseIcon={ iconSize:[36,36], iconAnchor:[18,18], popupAnchor:[0,-22] };
 const icons = {
   1:L.icon({...baseIcon, iconUrl:"https://primary.jwwb.nl/public/q/t/q/temp-uozhroxmecrdemnjgoky/logo_initiale_marron-_gourmand_-l-gant_minimaliste__10_-removebg-preview-high.png?enable-io=true&width=532"}), 
   2:L.icon({...baseIcon, iconUrl:"https://primary.jwwb.nl/public/q/t/q/temp-uozhroxmecrdemnjgoky/logo_initiale_marron-_gourmand_-l-gant_minimaliste__11_-removebg-preview-high.png?enable-io=true&width=532"}), 
@@ -306,14 +280,13 @@ const icons = {
   4:L.icon({...baseIcon, iconUrl:"https://primary.jwwb.nl/public/q/t/q/temp-uozhroxmecrdemnjgoky/logo_initiale_marron-_gourmand_-l-gant_minimaliste__13_-removebg-preview-high.png?enable-io=true&width=532"}), 
   5:L.icon({...baseIcon, iconUrl:"https://primary.jwwb.nl/public/q/t/q/temp-uozhroxmecrdemnjgoky/logo_initiale_marron-_gourmand_-l-gant_minimaliste__14_-removebg-preview-high.png?enable-io=true&width=532"})
 };
-const vigilanceText = {1:"Aucuns phénomènes prévus",2:"Phénomènes faibles / modérés possibles",3:"Phénomènes forts possibles",4:"Phénomènes violents possibles",5:"Phénomènes extrêmes prévus"};
-const phenLabels = {rafales:"Fortes rafales de vent possibles",petiteGrele:"Grêle de petite taille possible",grelleMoyenne:"Grêle de taille moyenne possible",grelleGrosse:"Grêle de grosse taille possible",fortesPrecip:"Fortes précipitations possibles",activiteElec:"Orage avec forte activité électrique possible",ruissements:"Risque de ruissellements possibles"};
-const circleColors = {1:"#2ecc71",2:"#f1c40f",3:"#e67e22",4:"#e74c3c",5:"#9b59b6"};
+const vigilanceText={1:"Aucuns phénomènes prévus",2:"Phénomènes faibles / modérés possibles",3:"Phénomènes forts possibles",4:"Phénomènes violents possibles",5:"Phénomènes extrêmes prévus"};
+const phenLabels={rafales:"Fortes rafales de vent possibles",petiteGrele:"Grêle de petite taille possible",grelleMoyenne:"Grêle de taille moyenne possible",grelleGrosse:"Grêle de grosse taille possible",fortesPrecip:"Fortes précipitations possibles",activiteElec:"Orage avec forte activité électrique possible",ruissements:"Risque de ruissellements possibles"};
+const circleColors={1:"#2ecc71",2:"#f1c40f",3:"#e67e22",4:"#e74c3c",5:"#9b59b6"};
 
 const markers={}, circles={}, blinkTimers={}, surveillanceMarkers={};
 let currentUserUid=null;
-let clientRipple = null;       // ⚡ Cercle animé client
-let clientRippleTimer = null;  // ⚡ Intervalle animation
+let clientRipple=null, clientRippleTimer=null;
 const clientInfoDiv = document.getElementById("clientInfo");
 
 // 🔹 Login
@@ -330,40 +303,31 @@ loginBtn.onclick = ()=>{
       loadSurveillancePoints();
       showClientInfo();
     })
-    .catch(err => {
-      console.log("Erreur login Firebase :", err);
-      alert("Incorrect");
-    });
+    .catch(err => { console.log("Erreur login Firebase :", err); alert("Incorrect"); });
 };
 
+// 🔹 Affichage client + frise avec gestion lastSelectedDate
 function showClientInfo(){
   if(!currentUserUid) return;
-
   db.collection("points").where("userId","==",currentUserUid)
     .onSnapshot(snapshot=>{
-      if(snapshot.empty){
-        clientInfoDiv.textContent = "Aucune information disponible";
-        return;
-      }
-
+      if(snapshot.empty){ clientInfoDiv.textContent="Aucune information disponible"; return; }
       const point = snapshot.docs[0].data();
       const email = auth.currentUser?.email || "-";
       const typeSurveillance = point.phenomenonType || "-";
       clientInfoDiv.textContent = `Email: ${email} | Type de surveillance: ${typeSurveillance}`;
-      animateClientPoint([point.lat, point.lng]); // ⚡ Animation cercle unique
+      animateClientPoint([point.lat, point.lng]);
 
-      // 🔹 AJOUTER ICI : récupérer la frise depuis hourlyForecasts
-      const today = new Date().toISOString().slice(0,10); // date du jour "YYYY-MM-DD"
-      db.collection("hourlyForecasts")
-        .get()
-        .then(snapshot=>{
-          snapshot.forEach(doc=>{
-            const data = doc.data();
-            if(doc.id.startsWith(currentUserUid + "_" + today)){ // point client + date
-              displayClientTimeline(data.hours);
-            }
-          });
-        });
+      const today = new Date().toISOString().slice(0,10);
+      const dateToUse = point.lastSelectedDate || today; // ⚡ ici on récupère la date modifiée
+      const docId = currentUserUid + "_" + dateToUse;
+
+      db.collection("hourlyForecasts").doc(docId).get().then(snap=>{
+        if(snap.exists){
+          const hoursData = snap.data().hours || {};
+          displayClientTimeline(hoursData);
+        }
+      });
     });
 }
 
@@ -374,49 +338,36 @@ function loadPoints(){
       const d = doc.data();
       const id = doc.id;
       const level = Math.min(Number(d.alertLevel),5);
+      const phenList = d.phenomena ? Object.entries(d.phenomena).filter(([k,v])=>v).map(([k])=>phenLabels[k]).join("<br>")||"-" : "-";
 
-      // Liste des phénomènes
-      const phenList = d.phenomena
-        ? Object.entries(d.phenomena).filter(([k,v])=>v).map(([k])=>phenLabels[k]).join("<br>") || "-"
-        : "-";
+      let hourlyHTML="-";
+      let nextDaysText="-";
+      let friseDate="-";
+      let decisionHelp=d.description||"-";
 
-      // 🔹 Frise horaire et texte prochains jours (pour utilisateur courant uniquement)
-      let hourlyHTML = "-";
-      let nextDaysText = "-";
-      let friseDate = "-";
-      let decisionHelp = d.description || "-"; // ⚡ Reprendre "Description / aide à la décision" du tableau de bord
-
-      if(d.userId === currentUserUid){
+      if(d.userId===currentUserUid){
         try{
-          const snapDate = d.jourAModifier || new Date().toISOString().slice(0,10); // Date saisie sur le tableau de bord
-          friseDate = snapDate;
-
-          const snap = await db.collection("hourlyForecasts").doc(id + "_" + snapDate).get();
+          const snapDate = d.lastSelectedDate || new Date().toISOString().slice(0,10); // ⚡ utilisation lastSelectedDate
+          friseDate=snapDate;
+          const snap = await db.collection("hourlyForecasts").doc(id+"_"+snapDate).get();
           if(snap.exists){
-            const hoursData = snap.data().hours || {};
-            nextDaysText = snap.data().nextDaysText || "-";
-
-            // ⚡ Fonction pour formater la date
-            function formatDateLong(dateString) {
+            const hoursData = snap.data().hours||{};
+            nextDaysText = snap.data().nextDaysText||"-";
+            function formatDateLong(dateString){
               const date = new Date(dateString);
-              const options = { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' };
-              return date.toLocaleDateString('fr-FR', options); // ex: "Mardi 03 Mars 2026"
+              return date.toLocaleDateString('fr-FR',{weekday:'long',day:'2-digit',month:'long',year:'numeric'});
             }
-
-            // ⚡ Création frise HTML toutes les 2h avec heure visible, pas de cadre blanc
-            hourlyHTML = `<div style="text-align:center; font-weight:bold; margin-bottom:4px;">${formatDateLong(friseDate)}</div>`;
-            hourlyHTML += '<div style="display:flex; gap:2px; justify-content:center; align-items:flex-end;">';
+            hourlyHTML=`<div style="text-align:center; font-weight:bold; margin-bottom:4px;">${formatDateLong(friseDate)}</div>`;
+            hourlyHTML+='<div style="display:flex; gap:2px; justify-content:center; align-items:flex-end;">';
             for(let h=0; h<24; h+=2){
-              const val = hoursData[h] || 0;
-              const colorMap = {0:"#27ae60",1:"#f1c40f",2:"#e67e22",3:"#e74c3c",4:"#9b59b6"};
-              hourlyHTML += `
-                <div style="display:flex; flex-direction:column; align-items:center;">
-                  <div style="width:18px; height:${(val+1)*10}px; background:${colorMap[val]}; border:1px solid #ccc;" title="${h}h"></div>
-                  <div style="font-size:10px; margin-top:2px;">${h}h</div>
-                </div>
-              `;
+              const val=hoursData[h]||0;
+              const colorMap={0:"#27ae60",1:"#f1c40f",2:"#e67e22",3:"#e74c3c",4:"#9b59b6"};
+              hourlyHTML+=`<div style="display:flex; flex-direction:column; align-items:center;">
+                <div style="width:18px;height:${(val+1)*10}px;background:${colorMap[val]};border:1px solid #ccc;" title="${h}h"></div>
+                <div style="font-size:10px;margin-top:2px;">${h}h</div>
+              </div>`;
             }
-            hourlyHTML += '</div>';
+            hourlyHTML+='</div>';
           }
         } catch(e){ console.log(e); }
       }
@@ -425,9 +376,7 @@ function loadPoints(){
         ? `<div class="popup-box">
              <div class="popup-title">${d.name}</div>
              <div class="popup-location">${d.location}</div>
-             <div style="text-align:center;">
-               <span class="vigi-badge vigi-${level}">${vigilanceText[level]}</span>
-             </div>
+             <div style="text-align:center;"><span class="vigi-badge vigi-${level}">${vigilanceText[level]}</span></div>
              <div class="popup-section"><div class="popup-label">Surveillance :</div>${d.phenomenonType || "-"}</div>
              <div class="popup-section"><div class="popup-label">Phénomènes associés :</div>${phenList}</div>
              <div class="popup-section"><div class="popup-label">Évolution prochaines heures :</div>${hourlyHTML}</div>
@@ -438,34 +387,16 @@ function loadPoints(){
         : `<div class="popup-box" style="text-align:center;font-weight:bold;color:red;">Impossible de voir les informations de cet utilisateur</div>`;
 
       if(!markers[id]){
-        // 🔹 Marqueur
-        markers[id] = L.marker([d.lat,d.lng], {icon: icons[level]})
-            .addTo(map)
-            .on("click", () => {
-                openClientModal(popupHTML); // ouvre la modal centrée
-            });
-
-        // 🔹 Cercle de couleur
-        circles[id] = L.circle([d.lat,d.lng], {
-            radius: 1300,
-            color: circleColors[level],
-            fillColor: circleColors[level],
-            fillOpacity: 0.15
-        }).addTo(map);
-
+        markers[id] = L.marker([d.lat,d.lng],{icon:icons[level]}).addTo(map).on("click",()=>openClientModal(popupHTML));
+        circles[id] = L.circle([d.lat,d.lng],{radius:1300,color:circleColors[level],fillColor:circleColors[level],fillOpacity:0.15}).addTo(map);
       } else {
-        // 🔹 Met à jour l'icône et la couleur du cercle
         markers[id].setIcon(icons[level]);
-        circles[id].setStyle({
-            color: circleColors[level],
-            fillColor: circleColors[level]
-        });
+        circles[id].setStyle({color:circleColors[level],fillColor:circleColors[level]});
       }
 
-      // Effet clignotant pour vigilance >=3
       if(level>=3 && !blinkTimers[id]){
         let v=true;
-        blinkTimers[id]=setInterval(()=>{ if(markers[id]._icon){markers[id]._icon.style.opacity=v?"0.35":"1"; v=!v;} },600);
+        blinkTimers[id]=setInterval(()=>{ if(markers[id]._icon){markers[id]._icon.style.opacity=v?"0.35":"1";v=!v;} },600);
       }
       if(level<3 && blinkTimers[id]){
         clearInterval(blinkTimers[id]);
@@ -476,88 +407,59 @@ function loadPoints(){
   });
 }
 
-// 🔹 Animation du cercle client (ripple unique)
-function animateClientPoint(clientLatLng) {
-  const minRadius = 400;   
-  const maxRadius = 1500;   
-  let radius = minRadius;
-  let growing = true;
-
-  // Supprime l'ancien cercle s'il existe
-  if(clientRipple){
-    map.removeLayer(clientRipple);
-    clientRipple = null;
-  }
-  if(clientRippleTimer){
-    clearInterval(clientRippleTimer);
-    clientRippleTimer = null;
-  }
-
-  // Crée le cercle avec fond transparent
-  clientRipple = L.circle(clientLatLng, {
-    color: "#3498db",
-    fillOpacity: 0,  // 🔹 fond transparent
-    weight: 3,
-    radius: radius
-  }).addTo(map);
-
-  // Animation "ripple"
-  const interval = 30;
-  const step = 25;
-  clientRippleTimer = setInterval(()=>{
-    if(growing){
-      radius += step;
-      if(radius >= maxRadius) growing = false;
-    } else {
-      radius -= step;
-      if(radius <= minRadius) growing = true;
-    }
+// 🔹 Animation cercle client
+function animateClientPoint(clientLatLng){
+  const minRadius=400,maxRadius=1500;
+  let radius=minRadius,growing=true;
+  if(clientRipple){ map.removeLayer(clientRipple); clientRipple=null; }
+  if(clientRippleTimer){ clearInterval(clientRippleTimer); clientRippleTimer=null; }
+  clientRipple = L.circle(clientLatLng,{color:"#3498db",fillOpacity:0,weight:3,radius:radius}).addTo(map);
+  const interval=30,step=25;
+  clientRippleTimer=setInterval(()=>{
+    if(growing){ radius+=step;if(radius>=maxRadius) growing=false; }
+    else { radius-=step;if(radius<=minRadius) growing=true; }
     clientRipple.setRadius(radius);
     clientRipple.setLatLng(clientLatLng);
-  }, interval);
-
-  // Centrer la carte sur le client
-  map.setView(clientLatLng, map.getZoom());
+  },interval);
+  map.setView(clientLatLng,map.getZoom());
 }
 
 // 🔹 Surveillance grêle / vent
 function loadSurveillancePoints(){
   db.collection("surveillancePoints").onSnapshot(snapshot=>{
     snapshot.forEach(doc=>{
-      const d = doc.data();
-      const id = doc.id;
+      const d=doc.data(),id=doc.id;
       let iconUrl="";
       if(d.type==="grele") iconUrl="https://emojigraph.org/media/openmoji/red-triangle-pointed-up_1f53a.png";
       if(d.type==="vent") iconUrl="https://images.icon-icons.com/8/PNG/256/weather_wind_flag_storm_travel_1455.png";
+      const popupText = `${d.type==="grele"?"Surveillance grêle":"Surveillance vent"}<br>Mise à jour : ${d.createdAt?.toDate ? d.createdAt.toDate().toLocaleString() : "-"}`;
       if(!surveillanceMarkers[id]){
-        surveillanceMarkers[id]=L.marker([d.lat,d.lng],{
-          icon:L.icon({iconUrl:iconUrl, iconSize:[30,30], iconAnchor:[15,15]})
-        }).addTo(map).bindPopup(d.type==="grele"?"Surveillance grêle":"Surveillance vent violent");
+        surveillanceMarkers[id]=L.marker([d.lat,d.lng],{icon:L.icon({iconUrl:iconUrl,iconSize:[30,30],iconAnchor:[15,15]}),type:d.type}).addTo(map).bindPopup(popupText);
       } else {
         surveillanceMarkers[id].setLatLng([d.lat,d.lng]);
+        surveillanceMarkers[id].bindPopup(popupText);
       }
     });
+    updateSurveillanceLegend();
   });
 }
 
-// 🔹 Création de la légende dynamique pour surveillance
-const surveillanceLegendDiv = document.createElement("div");
-surveillanceLegendDiv.id = "surveillanceLegend";
-surveillanceLegendDiv.style.position = "absolute";
-surveillanceLegendDiv.style.bottom = "58px";
-surveillanceLegendDiv.style.left = "10px";
-surveillanceLegendDiv.style.background = "white";
-surveillanceLegendDiv.style.padding = "8px 12px";
-surveillanceLegendDiv.style.borderRadius = "8px";
-surveillanceLegendDiv.style.boxShadow = "0 4px 12px rgba(0,0,0,0.2)";
-surveillanceLegendDiv.style.fontSize = "14px";
-surveillanceLegendDiv.style.zIndex = 1000;
-surveillanceLegendDiv.style.display = "flex";
-surveillanceLegendDiv.style.alignItems = "center";
-surveillanceLegendDiv.style.gap = "12px";
-
-// Structure initiale
-surveillanceLegendDiv.innerHTML = `
+// 🔹 Légende dynamique
+const surveillanceLegendDiv=document.createElement("div");
+surveillanceLegendDiv.id="surveillanceLegend";
+surveillanceLegendDiv.style.position="absolute";
+surveillanceLegendDiv.style.bottom="58px";
+surveillanceLegendDiv.style.left="10px";
+surveillanceLegendDiv.style.background="white";
+surveillanceLegendDiv.style.padding="8px 12px";
+surveillanceLegendDiv.style.borderRadius="8px";
+surveillanceLegendDiv.style.boxShadow="0 4px 12px rgba(0,0,0,0.2)";
+surveillanceLegendDiv.style.fontSize="14px";
+surveillanceLegendDiv.style.zIndex=1000;
+surveillanceLegendDiv.style.display="flex";
+surveillanceLegendDiv.style.alignItems="center";
+surveillanceLegendDiv.style.gap="12px";
+surveillanceLegendDiv.innerHTML=`
   <div style="display:flex;align-items:center;gap:4px;">
     <img src="https://emojigraph.org/media/openmoji/red-triangle-pointed-up_1f53a.png" style="width:18px;height:18px;">
     <span id="greleCount">Surveillance Grêle = 0</span>
@@ -569,98 +471,40 @@ surveillanceLegendDiv.innerHTML = `
 `;
 document.body.appendChild(surveillanceLegendDiv);
 
-// 🔹 Compteurs dynamiques
 function updateSurveillanceLegend(){
-  let grele = 0;
-  let vent = 0;
+  let grele=0,vent=0;
   Object.values(surveillanceMarkers).forEach(m=>{
-    const type = m.options.type;
+    const type=m.options.type;
     if(type==="grele") grele++;
     if(type==="vent") vent++;
   });
-  document.getElementById("greleCount").textContent = `Surveillance Grêle = ${grele}`;
-  document.getElementById("ventCount").textContent = `Surveillance Vent = ${vent}`;
+  document.getElementById("greleCount").textContent=`Surveillance Grêle = ${grele}`;
+  document.getElementById("ventCount").textContent=`Surveillance Vent = ${vent}`;
 }
 
-// 🔹 Modification de loadSurveillancePoints() pour intégrer popup date/heure et compteur
-function loadSurveillancePoints(){
-  db.collection("surveillancePoints").onSnapshot(snapshot=>{
-    snapshot.forEach(doc=>{
-      const d = doc.data();
-      const id = doc.id;
-      let iconUrl="";
-      if(d.type==="grele") iconUrl="https://emojigraph.org/media/openmoji/red-triangle-pointed-up_1f53a.png";
-      if(d.type==="vent") iconUrl="https://images.icon-icons.com/8/PNG/256/weather_wind_flag_storm_travel_1455.png";
-
-      // Marqueur avec info date/heure
-      const popupText = `${d.type==="grele" ? "Surveillance grêle" : "Surveillance vent"}<br>
-                         Mise à jour : ${d.createdAt?.toDate ? d.createdAt.toDate().toLocaleString() : "-"}`;
-
-      if(!surveillanceMarkers[id]){
-        surveillanceMarkers[id]=L.marker([d.lat,d.lng],{
-          icon:L.icon({iconUrl:iconUrl, iconSize:[30,30], iconAnchor:[15,15]}),
-          type:d.type // ⚡ Stocker type pour le compteur
-        }).addTo(map).bindPopup(popupText);
-      } else {
-        surveillanceMarkers[id].setLatLng([d.lat,d.lng]);
-        surveillanceMarkers[id].bindPopup(popupText);
-      }
-    });
-
-    // ⚡ Mettre à jour les compteurs
-    updateSurveillanceLegend();
-  });
-}
+const colors={0:"#27ae60",1:"#f1c40f",2:"#e67e22",3:"#e74c3c",4:"#9b59b6"};
 
 function displayClientTimeline(hours){
-  const container = document.getElementById("hourlyTimelineClient");
-  container.innerHTML = ""; // vide avant d'ajouter
+  const container=document.getElementById("hourlyTimelineClient");
+  if(!container) return;
+  container.innerHTML="";
   Object.keys(hours).sort().forEach(h=>{
-    const val = hours[h];
-    const block = document.createElement("div");
-    block.style.width = "14px";
-    block.style.height = (val+1)*10 + "px"; // hauteur simple
-    block.style.background = colors[val];
+    const val=hours[h];
+    const block=document.createElement("div");
+    block.style.width="14px";
+    block.style.height=(val+1)*10+"px";
+    block.style.background=colors[val];
     container.appendChild(block);
   });
 }
 
-function createPopupTimeline(hours) {
-    if(!hours || Object.keys(hours).length === 0) return "Pas de données pour aujourd'hui";
-    let html = '<div style="display:flex;gap:2px; justify-content:center;">';
-    Object.keys(hours).sort().forEach(h => {
-        const val = hours[h]; 
-        const color = colors[val] || "#ccc"; // couleurs déjà définies
-        const height = (val+1)*8; // hauteur dynamique
-        html += `<div style="width:12px;height:${height}px;background:${color};"></div>`;
-    });
-    html += "</div>";
-    return html;
-}
-
-const colors = {
-  0:"#27ae60", // vert
-  1:"#f1c40f", // jaune
-  2:"#e67e22", // orange
-  3:"#e74c3c", // rouge
-  4:"#9b59b6"  // violet
-};
-
-function openClientModal(popupHTML) {
-  const modal = document.getElementById("clientModal");
-  const modalBox = document.getElementById("clientModalBox");
-  modalBox.innerHTML = popupHTML;  // réutilise le contenu du popup actuel
-  modal.style.display = "flex";
-
-  // Fermer la modal en cliquant sur la croix
-  document.getElementById("clientModalClose").onclick = () => {
-    modal.style.display = "none";
-  };
-
-  // Fermer la modal en cliquant sur l’overlay
-  modal.onclick = (e) => {
-    if(e.target === modal) modal.style.display = "none";
-  };
+function openClientModal(popupHTML){
+  const modal=document.getElementById("clientModal");
+  const modalBox=document.getElementById("clientModalBox");
+  modalBox.innerHTML=popupHTML;
+  modal.style.display="flex";
+  document.getElementById("clientModalClose").onclick=()=>{modal.style.display="none";};
+  modal.onclick=(e)=>{if(e.target===modal) modal.style.display="none";};
 }
 
 </script>
