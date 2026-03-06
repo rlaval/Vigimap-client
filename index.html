@@ -160,6 +160,12 @@ html, body { height:100%; margin:0; font-family:Arial,sans-serif; }
   text-align: center;
   margin-bottom: 6px;
 }
+
+/* Texte provenant du tableau de bord (modifiable) */
+.editable-text {
+  font-family: "Courier New", monospace;
+}
+
 </style>
 
 </head>
@@ -372,19 +378,37 @@ function loadPoints(){
         } catch(e){ console.log(e); }
       }
 
-      const popupHTML = (d.userId===currentUserUid)
-        ? `<div class="popup-box">
-             <div class="popup-title">${d.name}</div>
-             <div class="popup-location">${d.location}</div>
-             <div style="text-align:center;"><span class="vigi-badge vigi-${level}">${vigilanceText[level]}</span></div>
-             <div class="popup-section"><div class="popup-label">Surveillance :</div>${d.phenomenonType || "-"}</div>
-             <div class="popup-section"><div class="popup-label">Phénomènes associés :</div>${phenList}</div>
-             <div class="popup-section"><div class="popup-label">Évolution prochaines heures :</div>${hourlyHTML}</div>
-             <div class="popup-section"><div class="popup-label">Aide à la prise de décisions :</div>${decisionHelp}</div>
-             <div class="popup-section"><div class="popup-label">Évolution prochains jours :</div>${nextDaysText}</div>
-             <div class="popup-section"><div class="popup-label">Mise à jour :</div>${d.updatedAt?.toDate ? d.updatedAt.toDate().toLocaleString() : "-"}</div>
-           </div>`
-        : `<div class="popup-box" style="text-align:center;font-weight:bold;color:red;">Impossible de voir les informations de cet utilisateur</div>`;
+const popupHTML = (d.userId===currentUserUid)
+  ? `<div class="popup-box">
+       <div class="popup-title editable-text">${d.name}</div>
+       <div class="popup-location editable-text">${d.location}</div>
+       <div style="text-align:center;"><span class="vigi-badge vigi-${level}">${vigilanceText[level]}</span></div>
+       <div class="popup-section">
+         <div class="popup-label">Surveillance secteur :</div>
+         <div class="editable-text">${d.phenomenonType || "-"}</div>
+       </div>
+       <div class="popup-section">
+         <div class="popup-label">Phénomènes associés possibles :</div>
+         <div class="editable-text">${phenList}</div>
+       </div>
+       <div class="popup-section">
+         <div class="popup-label">Évolution prochaines heures :</div>
+         <div class="editable-text">${hourlyHTML}</div>
+       </div>
+       <div class="popup-section">
+         <div class="popup-label">Aide à la prise de décisions :</div>
+         <div class="editable-text">${decisionHelp}</div>
+       </div>
+       <div class="popup-section">
+         <div class="popup-label">Évolution prochains jours :</div>
+         <div class="editable-text">${nextDaysText}</div>
+       </div>
+       <div class="popup-section">
+         <div class="popup-label">Mise à jour :</div>
+         ${d.updatedAt?.toDate ? d.updatedAt.toDate().toLocaleString() : "-"}
+       </div>
+     </div>`
+  : `<div class="popup-box" style="text-align:center;font-weight:bold;color:red;">Impossible de voir les informations de cet utilisateur</div>`;
 
       if(!markers[id]){
         markers[id] = L.marker([d.lat,d.lng],{icon:icons[level]}).addTo(map).on("click",()=>openClientModal(popupHTML));
